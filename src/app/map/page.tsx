@@ -99,30 +99,7 @@ export default function MapPage() {
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: {
-        version: 8,
-        sources: {
-          osm: {
-            type: "raster",
-            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-            tileSize: 256,
-            attribution: "&copy; OpenStreetMap contributors",
-          },
-        },
-        layers: [
-          {
-            id: "osm",
-            type: "raster",
-            source: "osm",
-            paint: {
-              "raster-saturation": -0.5,
-              "raster-brightness-min": 0.4,
-              "raster-brightness-max": 0.8,
-              "raster-opacity": 0.8,
-            },
-          },
-        ],
-      },
+      style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
       center: [80.7718, 7.8731],
       zoom: 7.5,
       minZoom: 6,
