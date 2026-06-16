@@ -116,5 +116,5 @@ export const TEAM_MEMBERS: TeamMember[] = [
   },
 ];
 
-export const SUPABASE_URL = "https://wxvbhjabzystincqmhyn.supabase.co";
-export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind4dmJoamFienlzdGluY3FtaHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1Nzk3MDIsImV4cCI6MjA5NzE1NTcwMn0.8gq8LrZMz4Lu8moJGy0HZyltytChdnDHD4k3Q2KyEeg";
+export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+export const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
