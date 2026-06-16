@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import maplibregl from "maplibre-gl";
 import { destinations } from "@/lib/destinations-data";
 import { calculateRiskScore, generateDemoRiskScore } from "@/lib/risk-engine";
 import { getRiskLevel, WEATHER_CODES } from "@/lib/constants";
@@ -10,6 +9,7 @@ import { RiskScore, WeatherData } from "@/lib/types";
 import { X, Thermometer, Wind, Droplets, MapPin, Shield, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { fetchWeatherForMultipleLocations } from "@/lib/weather";
+import { SriLankaPaths } from "@/components/map/SriLankaPaths";
 
 // All 25 Sri Lankan districts with center coordinates
 const DISTRICTS = [
@@ -41,10 +41,6 @@ const DISTRICTS = [
 ];
 
 export default function MapPage() {
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
-  const markersRef = useRef<Record<string, maplibregl.Marker>>({});
-  
   const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loadingWeather, setLoadingWeather] = useState(false);
@@ -78,96 +74,6 @@ export default function MapPage() {
     }
     fetchRealRisk();
   }, []);
-
-  // Update map markers when riskScores change
-  useEffect(() => {
-    Object.entries(riskScores).forEach(([districtName, risk]) => {
-      const marker = markersRef.current[districtName];
-      if (marker) {
-        const el = marker.getElement();
-        el.style.background = `${risk.color}30`;
-        el.style.border = `2px solid ${risk.color}`;
-        el.style.boxShadow = `0 0 12px ${risk.color}40`;
-        el.innerHTML = `<span style="font-size: 10px; font-weight: 700; color: ${risk.color}; font-family: 'JetBrains Mono', monospace;">${risk.score}</span>`;
-      }
-    });
-  }, [riskScores]);
-
-  useEffect(() => {
-    if (!mapContainer.current) return;
-
-    const map = new maplibregl.Map({
-      container: mapContainer.current,
-      style: {
-        version: 8,
-        sources: {
-          osm: {
-            type: "raster",
-            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-            tileSize: 256,
-            attribution: "&copy; OpenStreetMap contributors",
-          },
-        },
-        layers: [
-          {
-            id: "osm",
-            type: "raster",
-            source: "osm",
-          },
-        ],
-      },
-      center: [80.7718, 7.8731],
-      zoom: 7.5,
-      minZoom: 6,
-      maxZoom: 14,
-    });
-
-    map.addControl(new maplibregl.NavigationControl(), "bottom-right");
-
-    map.on("load", () => {
-      map.resize(); // Force map to resize and fill container just in case
-
-      // Add district markers with risk-colored circles
-      DISTRICTS.forEach((district) => {
-        const risk = riskScores[district.name];
-        const el = document.createElement("div");
-        el.className = "district-marker";
-        el.style.cssText = `
-          width: 32px; height: 32px; border-radius: 50%;
-          background: ${risk.color}30;
-          border: 2px solid ${risk.color};
-          cursor: pointer;
-          display: flex; align-items: center; justify-content: center;
-          transition: all 0.3s ease;
-          box-shadow: 0 0 12px ${risk.color}40;
-        `;
-        el.innerHTML = `<span style="font-size: 10px; font-weight: 700; color: ${risk.color}; font-family: 'JetBrains Mono', monospace;">${risk.score}</span>`;
-        
-        el.addEventListener("mouseenter", () => {
-          el.style.transform = "scale(1.3)";
-          el.style.boxShadow = `0 0 24px ${risk.color}60`;
-        });
-        el.addEventListener("mouseleave", () => {
-          el.style.transform = "scale(1)";
-          el.style.boxShadow = `0 0 12px ${risk.color}40`;
-        });
-
-        const marker = new maplibregl.Marker({ element: el })
-          .setLngLat([district.lng, district.lat])
-          .addTo(map);
-
-        markersRef.current[district.name] = marker;
-
-        el.addEventListener("click", () => {
-          setSelectedDistrict(district.name);
-          map.flyTo({ center: [district.lng, district.lat], zoom: 10, duration: 1000 });
-        });
-      });
-    });
-
-    mapRef.current = map;
-    return () => map.remove();
-  }, []); // Remove riskScores dependency so map only loads once
 
   // Fetch weather when district is selected
   useEffect(() => {
@@ -203,6 +109,22 @@ export default function MapPage() {
         Math.abs(d.lat - (selectedDistrictData?.lat ?? 0)) < 0.5 && 
         Math.abs(d.lng - (selectedDistrictData?.lng ?? 0)) < 0.5)
     : [];
+
+  const handleDistrictClick = (id: string) => {
+    // find capitalization matching DISTRICTS array (e.g. colombo -> Colombo, nuwara-eliya -> Nuwara Eliya)
+    const formatted = id.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    const match = DISTRICTS.find(d => d.name.toLowerCase() === formatted.toLowerCase() || d.name.toLowerCase().replace(/ /g, "-") === id.toLowerCase());
+    if (match) setSelectedDistrict(match.name);
+  };
+
+  const getDistrictColor = (id: string) => {
+    const formatted = id.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    const match = DISTRICTS.find(d => d.name.toLowerCase() === formatted.toLowerCase() || d.name.toLowerCase().replace(/ /g, "-") === id.toLowerCase());
+    if (match && riskScores[match.name]) {
+      return `${riskScores[match.name].color}90`; // 90% opacity
+    }
+    return "#1f2937"; // default dark gray
+  };
 
   return (
     <div className="h-screen pt-16 md:pt-20 flex flex-col md:flex-row">
@@ -241,10 +163,7 @@ export default function MapPage() {
               return (
                 <button
                   key={district.name}
-                  onClick={() => {
-                    setSelectedDistrict(district.name);
-                    mapRef.current?.flyTo({ center: [district.lng, district.lat], zoom: 10, duration: 1000 });
-                  }}
+                  onClick={() => setSelectedDistrict(district.name)}
                   className={`w-full flex items-center justify-between p-3 rounded-lg text-sm transition-all ${
                     isSelected
                       ? "bg-primary/10 border border-primary/20"
@@ -290,9 +209,13 @@ export default function MapPage() {
         </div>
       </div>
 
-      {/* Map */}
-      <div className="flex-1 relative w-full h-full min-h-[500px]">
-        <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
+      {/* SVG Map Area */}
+      <div className="flex-1 relative w-full h-full min-h-[500px] bg-[#030712] overflow-hidden flex items-center justify-center">
+        <SriLankaPaths 
+          activeId={selectedDistrict?.toLowerCase().replace(/ /g, "-") || null} 
+          onDistrictClick={handleDistrictClick} 
+          getDistrictColor={getDistrictColor} 
+        />
 
         {/* Selected District Popup */}
         <AnimatePresence>
