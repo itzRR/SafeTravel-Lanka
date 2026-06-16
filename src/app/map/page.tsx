@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import maplibregl from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { destinations } from "@/lib/destinations-data";
 import { calculateRiskScore, generateDemoRiskScore } from "@/lib/risk-engine";
 import { getRiskLevel, WEATHER_CODES } from "@/lib/constants";
@@ -99,7 +98,24 @@ export default function MapPage() {
 
     const map = new maplibregl.Map({
       container: mapContainer.current,
-      style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+      style: {
+        version: 8,
+        sources: {
+          osm: {
+            type: "raster",
+            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+            tileSize: 256,
+            attribution: "&copy; OpenStreetMap contributors",
+          },
+        },
+        layers: [
+          {
+            id: "osm",
+            type: "raster",
+            source: "osm",
+          },
+        ],
+      },
       center: [80.7718, 7.8731],
       zoom: 7.5,
       minZoom: 6,
@@ -109,6 +125,8 @@ export default function MapPage() {
     map.addControl(new maplibregl.NavigationControl(), "bottom-right");
 
     map.on("load", () => {
+      map.resize(); // Force map to resize and fill container just in case
+
       // Add district markers with risk-colored circles
       DISTRICTS.forEach((district) => {
         const risk = riskScores[district.name];
@@ -273,8 +291,8 @@ export default function MapPage() {
       </div>
 
       {/* Map */}
-      <div className="flex-1 relative">
-        <div ref={mapContainer} className="absolute inset-0" />
+      <div className="flex-1 relative w-full h-full min-h-[500px]">
+        <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
 
         {/* Selected District Popup */}
         <AnimatePresence>
