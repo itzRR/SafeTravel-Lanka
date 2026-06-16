@@ -83,15 +83,15 @@ export function SriLankaPaths({ activeId, onDistrictClick, getDistrictColor }: S
                           </g>
                       </g>
                   </svg>
-        {tooltip.show && (
-          <div 
-            className="fixed z-[100] pointer-events-none px-3 py-1.5 bg-[#0a0a0a]/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl text-xs font-bold tracking-wide text-white"
-            style={{ left: tooltip.x + 15, top: tooltip.y + 15 }}
-          >
-            {tooltip.text}
-          </div>
-        )}
       </motion.div>
+      {tooltip.show && (
+        <div 
+          className="fixed z-[100] pointer-events-none px-3 py-1.5 bg-[#0a0a0a]/90 backdrop-blur-md border border-white/10 rounded-lg shadow-2xl text-xs font-bold tracking-wide text-white"
+          style={{ left: tooltip.x + 15, top: tooltip.y + 15 }}
+        >
+          {tooltip.text}
+        </div>
+      )}
     </div>
   );
 }
