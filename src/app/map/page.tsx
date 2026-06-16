@@ -80,9 +80,10 @@ export default function MapPage() {
             type: "raster",
             source: "osm",
             paint: {
-              "raster-saturation": -0.8,
-              "raster-brightness-max": 0.3,
-              "raster-contrast": 0.3,
+              "raster-saturation": -0.5,
+              "raster-brightness-min": 0.4,
+              "raster-brightness-max": 0.8,
+              "raster-opacity": 0.8,
             },
           },
         ],
