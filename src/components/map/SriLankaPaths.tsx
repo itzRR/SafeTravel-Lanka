@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import { motion } from 'framer-motion';
 
 interface SriLankaPathsProps {
   activeId: string | null;
@@ -7,17 +8,32 @@ interface SriLankaPathsProps {
 }
 
 export function SriLankaPaths({ activeId, onDistrictClick, getDistrictColor }: SriLankaPathsProps) {
+  const constraintsRef = useRef(null);
+  const [scale, setScale] = React.useState(1.5); // Default zoomed in a bit for desktop
+
+  const handleWheel = (e: React.WheelEvent) => {
+    // Only zoom if not scrolling wildly (e.g. on mobile, let natural touch pinch work)
+    setScale((s) => Math.min(Math.max(0.5, s + e.deltaY * -0.002), 5));
+  };
+
   return (
-    <div className="w-full h-full flex items-center justify-center p-4">
-      <svg 
-                    viewBox="-220 -80 840 960" 
-                    className="sl-map" 
-                    
-                    preserveAspectRatio="xMidYMid meet"
-                    style={{ pointerEvents: 'none' }} 
-                  >
-                      <g transform="translate(22 0) scale(1.02)">
-                          <g transform="translate(-260,-80)"> 
+    <div className="w-full h-full flex items-center justify-center p-4 overflow-hidden relative cursor-grab active:cursor-grabbing" ref={constraintsRef} onWheel={handleWheel}>
+      <motion.div
+        drag
+        dragConstraints={constraintsRef}
+        dragElastic={0.2}
+        animate={{ scale }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="w-full h-full max-w-[800px] max-h-[800px]"
+      >
+        <svg 
+          viewBox="-220 -80 840 960" 
+          className="w-full h-full drop-shadow-2xl" 
+          preserveAspectRatio="xMidYMid meet"
+          style={{ pointerEvents: 'auto' }} 
+        >
+          <g transform="translate(22 0) scale(1.02)">
+            <g transform="translate(-260,-80)"> 
                              {/* ... paths remain same, content here doesn't change ... */}
                              {/* BUT we need to output the paths. Since I can't easily skip lines in replacement without writing them, 
                                  I will just keep the Map component structure as is. 
@@ -55,6 +71,7 @@ export function SriLankaPaths({ activeId, onDistrictClick, getDistrictColor }: S
                           </g>
                       </g>
                   </svg>
+      </motion.div>
     </div>
   );
 }
