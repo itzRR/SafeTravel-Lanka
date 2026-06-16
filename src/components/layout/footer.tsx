@@ -8,7 +8,7 @@ export function Footer() {
       {/* Gradient top accent */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
 
-      <div className="container-wide py-16">
+      <div className="max-w-7xl mx-auto px-6 w-full py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           {/* Brand */}
           <div className="space-y-4">

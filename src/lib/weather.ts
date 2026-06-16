@@ -58,14 +58,45 @@ export async function fetchWeatherForMultipleLocations(
   locations: { lat: number; lng: number; name: string }[]
 ): Promise<Map<string, WeatherData>> {
   const results = new Map<string, WeatherData>();
-  const promises = locations.map(async (loc) => {
-    try {
-      const weather = await fetchCurrentWeather(loc.lat, loc.lng);
-      results.set(loc.name, weather);
-    } catch {
-      // Skip failed requests
-    }
+  if (locations.length === 0) return results;
+
+  const lats = locations.map((l) => l.lat).join(",");
+  const lngs = locations.map((l) => l.lng).join(",");
+
+  const params = new URLSearchParams({
+    latitude: lats,
+    longitude: lngs,
+    current: "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m,is_day",
+    timezone: "Asia/Colombo",
   });
-  await Promise.all(promises);
+
+  try {
+    const res = await fetch(`${BASE_URL}?${params}`, { next: { revalidate: 1800 } });
+    if (!res.ok) throw new Error("Failed to fetch batched weather");
+
+    const data = await res.json();
+    
+    // Open-Meteo returns an array of objects when multiple coordinates are given
+    if (Array.isArray(data)) {
+      data.forEach((d, i) => {
+        const c = d.current;
+        if (c) {
+          results.set(locations[i].name, {
+            temperature: c.temperature_2m,
+            humidity: c.relative_humidity_2m,
+            apparentTemperature: c.apparent_temperature,
+            precipitation: c.precipitation,
+            weatherCode: c.weather_code,
+            windSpeed: c.wind_speed_10m,
+            windDirection: c.wind_direction_10m,
+            isDay: c.is_day === 1,
+          });
+        }
+      });
+    }
+  } catch (error) {
+    console.error("Batch weather fetch failed:", error);
+  }
+
   return results;
 }

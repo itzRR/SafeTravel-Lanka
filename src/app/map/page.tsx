@@ -5,11 +5,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { destinations } from "@/lib/destinations-data";
-import { generateDemoRiskScore } from "@/lib/risk-engine";
+import { calculateRiskScore, generateDemoRiskScore } from "@/lib/risk-engine";
 import { getRiskLevel, WEATHER_CODES } from "@/lib/constants";
-import { WeatherData } from "@/lib/types";
+import { RiskScore, WeatherData } from "@/lib/types";
 import { X, Thermometer, Wind, Droplets, MapPin, Shield, AlertTriangle } from "lucide-react";
 import Link from "next/link";
+import { fetchWeatherForMultipleLocations } from "@/lib/weather";
 
 // All 25 Sri Lankan districts with center coordinates
 const DISTRICTS = [
@@ -43,21 +44,55 @@ const DISTRICTS = [
 export default function MapPage() {
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const markersRef = useRef<Record<string, maplibregl.Marker>>({});
+  
   const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loadingWeather, setLoadingWeather] = useState(false);
   const [filterLevel, setFilterLevel] = useState<string>("all");
 
-  const riskScores = useCallback(() => {
-    const scores: Record<string, ReturnType<typeof generateDemoRiskScore>> = {};
+  const [riskScores, setRiskScores] = useState<Record<string, RiskScore>>(() => {
+    const initial: Record<string, RiskScore> = {};
     DISTRICTS.forEach((d) => {
-      scores[d.name] = generateDemoRiskScore(d.name);
+      initial[d.name] = generateDemoRiskScore(d.name);
     });
-    return scores;
-  }, [])();
+    return initial;
+  });
 
   const selectedDistrictData = DISTRICTS.find((d) => d.name === selectedDistrict);
   const selectedRisk = selectedDistrict ? riskScores[selectedDistrict] : null;
+
+  // Fetch real weather and recalculate risk for all districts on mount
+  useEffect(() => {
+    async function fetchRealRisk() {
+      try {
+        const weathers = await fetchWeatherForMultipleLocations(DISTRICTS);
+        const newScores: Record<string, RiskScore> = {};
+        DISTRICTS.forEach((d) => {
+          const w = weathers.get(d.name) || null;
+          newScores[d.name] = calculateRiskScore(w, d.name);
+        });
+        setRiskScores(newScores);
+      } catch (error) {
+        console.error("Failed to fetch real risk scores:", error);
+      }
+    }
+    fetchRealRisk();
+  }, []);
+
+  // Update map markers when riskScores change
+  useEffect(() => {
+    Object.entries(riskScores).forEach(([districtName, risk]) => {
+      const marker = markersRef.current[districtName];
+      if (marker) {
+        const el = marker.getElement();
+        el.style.background = `${risk.color}30`;
+        el.style.border = `2px solid ${risk.color}`;
+        el.style.boxShadow = `0 0 12px ${risk.color}40`;
+        el.innerHTML = `<span style="font-size: 10px; font-weight: 700; color: ${risk.color}; font-family: 'JetBrains Mono', monospace;">${risk.score}</span>`;
+      }
+    });
+  }, [riskScores]);
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -126,6 +161,8 @@ export default function MapPage() {
           .setLngLat([district.lng, district.lat])
           .addTo(map);
 
+        markersRef.current[district.name] = marker;
+
         el.addEventListener("click", () => {
           setSelectedDistrict(district.name);
           map.flyTo({ center: [district.lng, district.lat], zoom: 10, duration: 1000 });
@@ -135,7 +172,7 @@ export default function MapPage() {
 
     mapRef.current = map;
     return () => map.remove();
-  }, [riskScores]);
+  }, []); // Remove riskScores dependency so map only loads once
 
   // Fetch weather when district is selected
   useEffect(() => {
